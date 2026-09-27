@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dressing Platform - Glassmorphism Store</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <nav class="navbar glass-panel">
+        <div class="brand-title">Dressing Platform</div>
+        <ul class="nav-links">
+            <li><a href="#">Home</a></li>
+            <li><a href="#">New Arrivals</a></li>
+            <li><a href="#">Shop</a></li>
+            {% if user %}
+            <li><a href="#" onclick="openOrdersModal()">My Orders</a></li>
+            {% endif %}
+        </ul>
+        
+        <div class="user-badge">
+            {% if user %}
+                <span>Hi, <strong>{{ user.username }}</strong></span>
+                <button class="cart-btn" onclick="logout()">Logout</button>
+            {% else %}
+                <button class="cart-btn" onclick="openAuthModal()">Login / Sign Up</button>
+            {% endif %}
+            <button class="cart-btn" onclick="toggleCart()">🛒 Cart (<span id="cart-count">0</span>)</button>
+        </div>
+    </nav>
+
+    <header class="hero-section glass-panel">
+        <h1 class="hero-title">Summer Collection 2026</h1>
+        <p class="hero-subtitle">Unveil Your New Favorite Look with Modern Elegance</p>
+    </header>
+
+    <main class="products-section">
+        <h2 class="section-title">Featured Dresses</h2>
+        <div class="product-grid">
+            {% for product in products %}
+            <div class="product-card glass-panel">
+                <img src="{{ product.image }}" alt="{{ product.name }}" class="product-image">
+                <div class="product-info">
+                    <span class="product-name">{{ product.name }}</span>
+                    <span class="product-price">${{ "%.2f"|format(product.price) }}</span>
+                </div>
+                <button class="add-cart-btn" onclick="addToCart('{{ product.name }}', {{ product.price }})">Add to Cart</button>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <aside class="cart-drawer" id="cart-drawer">
+        <div class="cart-header">
+            <h3>Your Shopping Cart</h3>
+            <button class="close-cart-btn" onclick="toggleCart()">&times;</button>
+        </div>
+        <div class="cart-items-container" id="cart-items">
+            <p id="empty-cart-msg">Your cart is currently empty.</p>
+        </div>
+        <div class="cart-footer">
+            <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                <span>Total:</span>
+                <span id="cart-total">$0.00</span>
+            </div>
+            <button class="checkout-btn" onclick="processCheckout()">Checkout Now</button>
+        </div>
+    </aside>
+
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal-card glass-panel">
+            <button onclick="closeAuthModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; font-size: 1.2rem; cursor: pointer;">&times;</button>
+            <h3 class="modal-title" id="auth-title">Login</h3>
+            <form id="auth-form" onsubmit="handleAuth(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="auth-username" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="auth-password" class="form-input" required>
+                </div>
+                <button type="submit" class="submit-btn" id="auth-btn">Log In</button>
+            </form>
+            <p style="text-align: center; margin-top: 15px; font-size: 0.9rem;">
+                <a href="#" onclick="toggleAuthMode()" id="auth-toggle-link">Need an account? Sign Up</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="orders-modal">
+        <div class="modal-card glass-panel" style="width: 500px;">
+            <button onclick="closeOrdersModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; font-size: 1.2rem; cursor: pointer;">&times;</button>
+            <h3 class="modal-title">My Order History</h3>
+            <div id="orders-list-container" style="max-height: 300px; overflow-y: auto;">
+                <p>Loading orders...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+        let isLoginMode = true;
+
+        function toggleCart() {
+            document.getElementById('cart-drawer').classList.toggle('open');
+        }
+
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            updateCartUI();
+            document.getElementById('cart-drawer').classList.add('open');
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            document.getElementById('cart-count').innerText = cart.length;
+            const container = document.getElementById('cart-items');
+            if (cart.length === 0) {
+                container.innerHTML = '<p id="empty-cart-msg">Your cart is currently empty.</p>';
+                document.getElementById('cart-total').innerText = '$0.00';
+                return;
+            }
+            let html = '';
+            let total = 0;
+            cart.forEach((item, index) => {
+                total += item.price;
+                html += `<div class="cart-item"><div><strong>${item.name}</strong><div>$${item.price.toFixed(2)}</div></div><button onclick="removeFromCart(${index})" style="background:none; border:none; color:red; cursor:pointer;">Remove</button></div>`;
+            });
+            container.innerHTML = html;
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+        }
+
+        async function processCheckout() {
+            if (cart.length === 0) {
+                alert("Your cart is empty!");
+                return;
+            }
+            const response = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: cart })
+            });
+            const result = await response.json();
+            if (result.status === 'success') {
+                alert(result.message);
+                cart = [];
+                updateCartUI();
+                toggleCart();
+            }
+        }
+
+        function openAuthModal() { document.getElementById('auth-modal').classList.add('active'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.remove('active'); }
+        
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? 'Login' : 'Sign Up';
+            document.getElementById('auth-btn').innerText = isLoginMode ? 'Log In' : 'Register';
+            document.getElementById('auth-toggle-link').innerText = isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Log In';
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('username', document.getElementById('auth-username').value);
+            formData.append('password', document.getElementById('auth-password').value);
+
+            const endpoint = isLoginMode ? '/api/login' : '/api/register';
+            const res = await fetch(endpoint, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (res.ok) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(data.message || 'Authentication failed');
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.reload();
+        }
+
+        async function openOrdersModal() {
+            document.getElementById('orders-modal').classList.add('active');
+            const res = await fetch('/api/orders');
+            const data = await res.json();
+            const container = document.getElementById('orders-list-container');
+            if (data.status === 'success' && data.orders.length > 0) {
+                container.innerHTML = data.orders.map(o => `
+                    <div style="background: rgba(255,255,255,0.3); padding: 10px; margin-bottom: 10px; border-radius: 8px;">
+                        <div><strong>Order #${o.id}</strong> - ${o.date}</div>
+                        <div style="font-size: 0.9rem; color: #444;">${o.items}</div>
+                        <div style="font-weight: 700; margin-top: 5px;">Total: $${o.total.toFixed(2)}</div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p>No orders found.</p>';
+            }
+        }
+        function closeOrdersModal() { document.getElementById('orders-modal').classList.remove('active'); }
+    </script>
+</body>
+</html>

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dressing Platform - Glassmorphism Store</title>
     <link rel="stylesheet" href="/static/style.css">
-    <!-- QR Code Generator Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
@@ -53,7 +52,10 @@
                     <span class="product-name">{{ product.name }}</span>
                     <span class="product-price">₹{{ "%.2f"|format(product.price) }}</span>
                 </div>
-                <button class="add-cart-btn" onclick="addToCart('{{ product.name }}', {{ product.price }})">Add to Cart</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="add-cart-btn" style="flex: 1;" onclick="addToCart('{{ product.name }}', {{ product.price }})">Add to Cart</button>
+                    <button class="add-cart-btn" style="flex: 1; background: #5f259f; color: white;" onclick="buyNow('{{ product.name }}', {{ product.price }})">⚡ Buy Now</button>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -65,15 +67,18 @@
             <h3>Shopping Cart</h3>
             <button class="close-cart-btn" onclick="toggleCart()">&times;</button>
         </div>
+        
         <div class="cart-items-container" id="cart-items">
             <p id="empty-cart-msg">Your cart is empty.</p>
         </div>
-        <div style="border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 15px;">
-            <div style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 12px;">
+
+        <!-- ALWAYS VISIBLE BOTTOM CHECKOUT BAR -->
+        <div style="border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: auto; background: rgba(255, 255, 255, 0.2);">
+            <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.1rem; margin-bottom: 12px;">
                 <span>Total:</span>
                 <span id="cart-total">₹0.00</span>
             </div>
-            <button class="submit-btn" style="background: #5f259f;" onclick="openPaymentModal()">Pay via UPI (GPay / PhonePe / Paytm)</button>
+            <button class="submit-btn" style="background: #5f259f; color: white; padding: 14px; font-size: 1rem;" onclick="openPaymentModal()">Pay via UPI (GPay / PhonePe / Paytm)</button>
         </div>
     </aside>
 
@@ -91,7 +96,7 @@
             <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 10px;">Total: <span id="payment-amount">₹0.00</span></p>
             <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 15px;">UPI ID: <strong>reddybr4@ybl</strong></p>
 
-            <a id="upi-app-link" href="#" class="submit-btn" style="display: inline-block; text-decoration: none; background: #22c55e; margin-bottom: 15px;">
+            <a id="upi-app-link" href="#" class="submit-btn" style="display: block; text-decoration: none; background: #22c55e; margin-bottom: 15px; text-align: center;">
                 🚀 Open UPI App directly
             </a>
 
@@ -154,6 +159,12 @@
             document.getElementById('cart-drawer').classList.add('open');
         }
 
+        function buyNow(name, price) {
+            cart = [{ name, price }];
+            updateCartUI();
+            openPaymentModal();
+        }
+
         function removeFromCart(index) {
             cart.splice(index, 1);
             updateCartUI();
@@ -183,12 +194,9 @@
             
             document.getElementById('payment-amount').innerText = `₹${total}`;
             
-            // Build direct UPI link format
             let upiURL = `upi://pay?pa=${upiID}&pn=DressingPlatform&am=${total}&cu=INR&tn=Order%20Payment`;
-            
             document.getElementById('upi-app-link').href = upiURL;
 
-            // Generate QR Code dynamically
             const qrContainer = document.getElementById("qrcode");
             qrContainer.innerHTML = "";
             new QRCode(qrContainer, {

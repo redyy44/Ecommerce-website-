@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dressing Platform - Glassmorphism Store</title>
     <link rel="stylesheet" href="/static/style.css">
+    <!-- QR Code Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -57,6 +59,7 @@
         </div>
     </main>
 
+    <!-- CART DRAWER -->
     <aside class="cart-drawer" id="cart-drawer">
         <div class="cart-header">
             <h3>Shopping Cart</h3>
@@ -70,13 +73,40 @@
                 <span>Total:</span>
                 <span id="cart-total">₹0.00</span>
             </div>
-            <button class="submit-btn" style="background: #5f259f;" onclick="payViaUPI()">Pay via UPI (GPay/PhonePe)</button>
+            <button class="submit-btn" style="background: #5f259f;" onclick="openPaymentModal()">Pay via UPI (GPay / PhonePe / Paytm)</button>
         </div>
     </aside>
 
+    <!-- UPI PAYMENT MODAL -->
+    <div class="modal-overlay" id="payment-modal">
+        <div class="modal-card glass-panel" style="text-align: center;">
+            <button onclick="closePaymentModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; font-size: 1.2rem; cursor: pointer;">&times;</button>
+            <h3 class="modal-title">Pay via UPI</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-light);">Scan or tap below to make payment</p>
+            
+            <div style="display: flex; justify-content: center; margin-bottom: 15px;">
+                <div id="qrcode" style="background: white; padding: 10px; border-radius: 12px; display: inline-block;"></div>
+            </div>
+
+            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 10px;">Total: <span id="payment-amount">₹0.00</span></p>
+            <p style="font-size: 0.85rem; color: var(--text-light); margin-bottom: 15px;">UPI ID: <strong>reddybr4@ybl</strong></p>
+
+            <a id="upi-app-link" href="#" class="submit-btn" style="display: inline-block; text-decoration: none; background: #22c55e; margin-bottom: 15px;">
+                🚀 Open UPI App directly
+            </a>
+
+            <div style="border-top: 1px solid var(--glass-border); padding-top: 15px; margin-top: 10px; text-align: left;">
+                <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 5px;">Enter UTR / Transaction Ref No. after payment:</label>
+                <input type="text" id="utr-number" class="form-input" placeholder="e.g. 4231XXXXXXXX" style="margin-bottom: 10px;">
+                <button class="submit-btn" onclick="submitUPIOrder()">Confirm Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH MODAL -->
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card glass-panel">
-            <button onclick="closeAuthModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; font-size: 1.2rem;">&times;</button>
+            <button onclick="closeAuthModal()" style="position: absolute; right: 15px; top: 15px; background: none; border: none; font-size: 1.2rem; cursor: pointer;">&times;</button>
             <h3 class="modal-title" id="auth-title">Login</h3>
             <form id="auth-form" onsubmit="handleAuth(event)">
                 <div class="form-group">
@@ -90,7 +120,7 @@
                 <button type="submit" class="submit-btn" id="auth-btn">Log In</button>
             </form>
             
-            <button class="google-btn" onclick="alert('Google Login setup in progress!')">
+            <button class="google-btn" onclick="alert('Google Login configuration pending client keys.')">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18">
                 Continue with Google
             </button>
@@ -104,6 +134,7 @@
     <script>
         let cart = [];
         let isLoginMode = true;
+        const upiID = "reddybr4@ybl";
 
         function toggleNav() { document.getElementById('nav-menu').classList.toggle('active'); }
         function toggleCart() { document.getElementById('cart-drawer').classList.toggle('open'); }
@@ -140,21 +171,59 @@
             let total = 0;
             cart.forEach((item, index) => {
                 total += item.price;
-                html += `<div class="cart-item"><div><strong>${item.name}</strong><div>₹${item.price.toFixed(2)}</div></div><button onclick="removeFromCart(${index})" style="background:none; border:none; color:red;">Remove</button></div>`;
+                html += `<div class="cart-item"><div><strong>${item.name}</strong><div>₹${item.price.toFixed(2)}</div></div><button onclick="removeFromCart(${index})" style="background:none; border:none; color:red; cursor:pointer;">Remove</button></div>`;
             });
             container.innerHTML = html;
             document.getElementById('cart-total').innerText = `₹${total.toFixed(2)}`;
         }
 
-        function payViaUPI() {
+        function openPaymentModal() {
             if (cart.length === 0) return alert("Your cart is empty!");
+            let total = cart.reduce((sum, item) => sum + item.price, 0).toFixed(2);
+            
+            document.getElementById('payment-amount').innerText = `₹${total}`;
+            
+            // Build direct UPI link format
+            let upiURL = `upi://pay?pa=${upiID}&pn=DressingPlatform&am=${total}&cu=INR&tn=Order%20Payment`;
+            
+            document.getElementById('upi-app-link').href = upiURL;
+
+            // Generate QR Code dynamically
+            const qrContainer = document.getElementById("qrcode");
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: upiURL,
+                width: 160,
+                height: 160
+            });
+
+            document.getElementById('payment-modal').classList.add('active');
+        }
+
+        function closePaymentModal() { document.getElementById('payment-modal').classList.remove('active'); }
+
+        async function submitUPIOrder() {
+            const utr = document.getElementById('utr-number').value.trim();
+            if (!utr) return alert("Please enter the UTR or Transaction Ref number from your UPI app after completing payment.");
+            
             let total = cart.reduce((sum, item) => sum + item.price, 0);
-            
-            // Generate deep link for UPI apps (replace with your personal UPI ID if testing)
-            let upiID = "merchant@upi"; 
-            let upiURL = `upi://pay?pa=${upiID}&pn=DressingPlatform&am=${total.toFixed(2)}&cu=INR&tn=E-Commerce%20Order`;
-            
-            window.location.href = upiURL;
+
+            const response = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: cart, utr_number: utr, total_amount: total })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert("Order placed successfully! We will verify your transaction ref number shortly.");
+                cart = [];
+                updateCartUI();
+                closePaymentModal();
+                toggleCart();
+            } else {
+                alert(result.message || "Order placement failed.");
+            }
         }
 
         function openAuthModal() { document.getElementById('auth-modal').classList.add('active'); }
